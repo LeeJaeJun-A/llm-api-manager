@@ -1,0 +1,31 @@
+openai:
+  - role: reasoning
+    name: gpt-4o
+    litellm_model: openai/gpt-4o
+  - role: general
+    name: gpt-4o-mini
+    litellm_model: openai/gpt-4o-mini
+
+anthropic:
+  - role: reasoning
+    name: claude-sonnet
+    litellm_model: anthropic/claude-sonnet-4-20250514
+  - role: general
+    name: claude-haiku
+    litellm_model: anthropic/claude-haiku-4-5-20251001
+
+gemini:
+  - role: reasoning
+    name: gemini-pro
+    litellm_model: gemini/gemini-2.5-pro
+  - role: general
+    name: gemini-flash
+    litellm_model: gemini/gemini-2.5-flash
+
+bedrock:
+  - role: reasoning
+    name: bedrock-claude-sonnet
+    litellm_model: bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0
+  - role: general
+    name: bedrock-claude-haiku
+    litellm_model: bedrock/anthropic.claude-3-5-haiku-20241022-v1:0
