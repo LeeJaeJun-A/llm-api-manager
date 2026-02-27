@@ -47,16 +47,16 @@ docker compose up -d
 
 ## API 사용법
 
-### 고객사(Team) 등록 (관리자)
+### 고객사(Customer) 등록 (관리자)
 
 ```bash
 # 고객사 생성 — customer_id를 원하는 값으로 직접 지정
-curl -X POST http://localhost:8000/api/v1/teams \
+curl -X POST http://localhost:8000/api/v1/customers \
   -H "X-API-Secret: $GATEWAY_API_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
     "customer_id": "acme-corp",
-    "team_alias": "고객사A",
+    "customer_alias": "고객사A",
     "models": ["gpt-4o", "gpt-4o-mini"]
   }'
 ```

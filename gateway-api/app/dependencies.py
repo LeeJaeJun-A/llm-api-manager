@@ -36,7 +36,7 @@ async def require_customer(
     x_customer_id: str = Header(..., alias="X-Customer-Id"),
     settings: Settings = Depends(get_settings),
 ) -> str:
-    """Validate customer credentials and return the customer's team_id."""
+    """Validate customer credentials and return the customer_id."""
     if x_api_secret != settings.gateway_api_secret:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

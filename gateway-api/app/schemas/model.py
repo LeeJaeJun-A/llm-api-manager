@@ -56,32 +56,34 @@ def load_provider_models() -> dict[str, list[dict[str, str]]]:
 INTERNAL_PREFIX = "_cust_"
 
 
-def internal_model_name(team_id: str, base_name: str) -> str:
-    """Hidden internal model name scoped to a team."""
-    return f"{INTERNAL_PREFIX}{team_id}_{base_name}"
+def internal_model_name(customer_id: str, base_name: str) -> str:
+    """Hidden internal model name scoped to a customer."""
+    return f"{INTERNAL_PREFIX}{customer_id}_{base_name}"
 
 
 def is_internal_model(name: str) -> bool:
     return name.startswith(INTERNAL_PREFIX)
 
 
-def base_name_from_internal(name: str, team_id: str) -> str:
+def base_name_from_internal(name: str, customer_id: str) -> str:
     """Extract the customer-facing model name from an internal name."""
-    prefix = f"{INTERNAL_PREFIX}{team_id}_"
+    prefix = f"{INTERNAL_PREFIX}{customer_id}_"
     if name.startswith(prefix):
         return name[len(prefix):]
     return name
 
 
-def build_aliases_for_team(team_id: str, model_names: list[str]) -> dict[str, str]:
+def build_aliases_for_customer(
+    customer_id: str, model_names: list[str]
+) -> dict[str, str]:
     """
     Build a key-level alias map from internal model names.
 
-    Returns: {"gemini-pro": "_cust_teamA_gemini-pro", ...}
+    Returns: {"gemini-pro": "_cust_customerA_gemini-pro", ...}
     so the customer calls model="gemini-pro" and LiteLLM resolves it.
     """
     aliases: dict[str, str] = {}
-    prefix = f"{INTERNAL_PREFIX}{team_id}_"
+    prefix = f"{INTERNAL_PREFIX}{customer_id}_"
     for name in model_names:
         if name.startswith(prefix):
             customer_facing = name[len(prefix):]

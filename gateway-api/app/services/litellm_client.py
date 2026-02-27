@@ -41,24 +41,26 @@ class LiteLLMClient:
         resp.raise_for_status()
         return resp.json()
 
-    # ── Team ────────────────────────────────────────
+    # ── Customer (LiteLLM team API) ─────────────────
 
-    async def create_team(self, data: dict) -> dict:
+    async def create_customer(self, data: dict) -> dict:
         return await self._request("POST", "/team/new", json=data)
 
-    async def list_teams(self) -> list[dict]:
+    async def list_customers(self) -> list[dict]:
         return await self._request("GET", "/team/list")
 
-    async def get_team(self, team_id: str) -> dict:
-        return await self._request("GET", "/team/info", params={"team_id": team_id})
+    async def get_customer(self, customer_id: str) -> dict:
+        return await self._request(
+            "GET", "/team/info", params={"team_id": customer_id}
+        )
 
-    async def update_team(self, team_id: str, data: dict) -> dict:
-        data["team_id"] = team_id
+    async def update_customer(self, customer_id: str, data: dict) -> dict:
+        data = {**data, "team_id": customer_id}
         return await self._request("POST", "/team/update", json=data)
 
-    async def delete_team(self, team_id: str) -> dict:
+    async def delete_customer(self, customer_id: str) -> dict:
         return await self._request(
-            "POST", "/team/delete", json={"team_ids": [team_id]}
+            "POST", "/team/delete", json={"team_ids": [customer_id]}
         )
 
     # ── Key ─────────────────────────────────────────
@@ -66,10 +68,10 @@ class LiteLLMClient:
     async def generate_key(self, data: dict) -> dict:
         return await self._request("POST", "/key/generate", json=data)
 
-    async def list_keys(self, team_id: str | None = None) -> dict:
+    async def list_keys(self, customer_id: str | None = None) -> dict:
         params = {}
-        if team_id:
-            params["team_id"] = team_id
+        if customer_id:
+            params["team_id"] = customer_id
         return await self._request("GET", "/key/list", params=params)
 
     async def get_key(self, key: str) -> dict:
@@ -102,8 +104,8 @@ class LiteLLMClient:
 
     # ── Helpers ──────────────────────────────────────
 
-    async def get_team_models(self, team_id: str) -> list[str]:
-        """Fetch the current model list for a team."""
-        info = await self.get_team(team_id)
-        team = info.get("team_info", info)
-        return team.get("models") or []
+    async def get_customer_models(self, customer_id: str) -> list[str]:
+        """Fetch the current model list for a customer."""
+        info = await self.get_customer(customer_id)
+        team_info = info.get("team_info", info)
+        return team_info.get("models") or []

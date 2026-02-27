@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.dependencies import close_litellm_client, init_litellm_client
-from app.routers import teams, keys, usage, credentials, traces
+from app.routers import customers, keys, usage, credentials, traces
 from app.services import audit
 
 logging.basicConfig(
@@ -34,7 +34,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.include_router(teams.router)
+app.include_router(customers.router)
 app.include_router(keys.router)
 app.include_router(usage.router)
 app.include_router(credentials.router)

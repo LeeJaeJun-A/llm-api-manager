@@ -2,7 +2,7 @@
 
 Provides programmatic access to per-key usage history stored in Langfuse.
 LiteLLM automatically sends traces to Langfuse with metadata including
-the virtual key hash and customer (team) ID, so we can filter by those.
+the virtual key hash and customer ID, so we can filter by those.
 """
 
 import logging
@@ -106,7 +106,7 @@ async def get_customer_trace(
     if trace_meta.get("user_api_key_team_id") != customer_id:
         tags = trace.get("tags") or []
         if f"team_id:{customer_id}" not in tags:
-            raise HTTPException(403, "This trace does not belong to your team")
+            raise HTTPException(403, "This trace does not belong to your customer")
 
     observations_raw = []
     try:

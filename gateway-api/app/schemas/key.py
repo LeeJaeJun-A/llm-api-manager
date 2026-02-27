@@ -6,7 +6,7 @@ class KeyCreateRequest(BaseModel):
     key_alias: str | None = Field(None, description="키 별칭")
     models: list[str] | None = Field(
         None,
-        description="이 키에 허용할 모델 (미지정 시 team 모델 상속)",
+        description="이 키에 허용할 모델 (미지정 시 customer 모델 상속)",
     )
     tpm_limit: int | None = Field(None, description="TPM 한도 (null=무제한)")
     rpm_limit: int | None = Field(None, description="RPM 한도 (null=무제한)")

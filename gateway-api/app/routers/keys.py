@@ -7,7 +7,7 @@ from app.dependencies import get_litellm_client, require_customer
 
 logger = logging.getLogger(__name__)
 from app.schemas.key import KeyCreateRequest, KeyResponse, KeyUpdateRequest
-from app.schemas.model import build_aliases_for_team
+from app.schemas.model import build_aliases_for_customer
 from app.services.litellm_client import LiteLLMClient
 
 router = APIRouter(prefix="/api/v1/keys", tags=["keys"])
@@ -16,20 +16,20 @@ router = APIRouter(prefix="/api/v1/keys", tags=["keys"])
 @router.post("", response_model=KeyResponse)
 async def create_key(
     body: KeyCreateRequest,
-    team_id: str = Depends(require_customer),
+    customer_id: str = Depends(require_customer),
     client: LiteLLMClient = Depends(get_litellm_client),
 ):
     """
-    키 발급 (team_id + TPM/RPM/예산 설정). REQ-01, REQ-04.
+    키 발급 (customer_id + TPM/RPM/예산 설정). REQ-01, REQ-04.
 
     고객사가 자체 provider 키를 등록한 경우, 해당 모델에 대한
     aliases가 자동 설정되어 호출부에 변화 없이 동작합니다.
     """
-    if body.customer_id != team_id:
-        raise HTTPException(status_code=403, detail="Cannot create keys for another team")
+    if body.customer_id != customer_id:
+        raise HTTPException(status_code=403, detail="Cannot create keys for another customer")
 
-    models = await client.get_team_models(team_id)
-    aliases = build_aliases_for_team(team_id, models)
+    models = await client.get_customer_models(customer_id)
+    aliases = build_aliases_for_customer(customer_id, models)
 
     payload: dict = {"team_id": body.customer_id}
     if aliases:
@@ -61,12 +61,12 @@ async def create_key(
 
 @router.get("")
 async def list_keys(
-    team_id: str = Depends(require_customer),
+    customer_id: str = Depends(require_customer),
     client: LiteLLMClient = Depends(get_litellm_client),
 ):
-    """내 team에 속한 키 목록 조회."""
+    """내 customer에 속한 키 목록 조회."""
     try:
-        result = await client.list_keys(team_id=team_id)
+        result = await client.list_keys(customer_id=customer_id)
     except HTTPStatusError as exc:
         raise HTTPException(status_code=exc.response.status_code, detail=str(exc))
 
@@ -88,7 +88,7 @@ async def list_keys(
 @router.get("/{key_id}", response_model=KeyResponse)
 async def get_key(
     key_id: str,
-    team_id: str = Depends(require_customer),
+    customer_id: str = Depends(require_customer),
     client: LiteLLMClient = Depends(get_litellm_client),
 ):
     """키 상세 + 사용량 조회."""
@@ -98,8 +98,8 @@ async def get_key(
         raise HTTPException(status_code=exc.response.status_code, detail=str(exc))
 
     info = result.get("info", result)
-    if info.get("team_id") != team_id:
-        raise HTTPException(status_code=403, detail="Key does not belong to your team")
+    if info.get("team_id") != customer_id:
+        raise HTTPException(status_code=403, detail="Key does not belong to your customer")
 
     return _to_key_response(info)
 
@@ -108,7 +108,7 @@ async def get_key(
 async def update_key(
     key_id: str,
     body: KeyUpdateRequest,
-    team_id: str = Depends(require_customer),
+    customer_id: str = Depends(require_customer),
     client: LiteLLMClient = Depends(get_litellm_client),
 ):
     """키 Limit 수정. REQ-04."""
@@ -118,8 +118,8 @@ async def update_key(
         raise HTTPException(status_code=exc.response.status_code, detail=str(exc))
 
     info = info_result.get("info", info_result)
-    if info.get("team_id") != team_id:
-        raise HTTPException(status_code=403, detail="Key does not belong to your team")
+    if info.get("team_id") != customer_id:
+        raise HTTPException(status_code=403, detail="Key does not belong to your customer")
 
     payload = body.model_dump(exclude_none=True)
     if not payload:
@@ -136,7 +136,7 @@ async def update_key(
 @router.delete("/{key_id}")
 async def delete_key(
     key_id: str,
-    team_id: str = Depends(require_customer),
+    customer_id: str = Depends(require_customer),
     client: LiteLLMClient = Depends(get_litellm_client),
 ):
     """키 비활성화/삭제."""
@@ -146,8 +146,8 @@ async def delete_key(
         raise HTTPException(status_code=exc.response.status_code, detail=str(exc))
 
     info = info_result.get("info", info_result)
-    if info.get("team_id") != team_id:
-        raise HTTPException(status_code=403, detail="Key does not belong to your team")
+    if info.get("team_id") != customer_id:
+        raise HTTPException(status_code=403, detail="Key does not belong to your customer")
 
     try:
         result = await client.delete_key(key_id)

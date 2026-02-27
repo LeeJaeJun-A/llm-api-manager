@@ -20,7 +20,7 @@ from app.dependencies import get_litellm_client, require_customer
 from app.schemas.model import (
     CustomerModelView,
     ProviderCredential,
-    build_aliases_for_team,
+    build_aliases_for_customer,
     internal_model_name,
     load_provider_models,
 )
@@ -57,9 +57,9 @@ async def _sync_key_aliases(
     client: LiteLLMClient, customer_id: str, models: list[str]
 ) -> int:
     """Rebuild aliases on every existing key for this customer."""
-    aliases = build_aliases_for_team(customer_id, models)
+    aliases = build_aliases_for_customer(customer_id, models)
     try:
-        result = await client.list_keys(team_id=customer_id)
+        result = await client.list_keys(customer_id=customer_id)
     except HTTPStatusError:
         return 0
 
@@ -112,7 +112,7 @@ async def register_credential(
 ):
     """고객사 자체 provider API 키 등록."""
     if customer_id != caller_id:
-        raise HTTPException(status_code=403, detail="Cannot modify another team")
+        raise HTTPException(status_code=403, detail="Cannot modify another customer")
 
     provider = credential.provider.lower()
     catalog = load_provider_models()
@@ -157,7 +157,7 @@ async def register_credential(
                 f"Rolled back {len(created_names)} previously created models.",
             )
 
-    current_models = await client.get_team_models(customer_id)
+    current_models = await client.get_customer_models(customer_id)
     platform_names = {d["name"] for d in model_defs}
     internal_names = [internal_model_name(customer_id, d["name"]) for d in model_defs]
 
@@ -167,14 +167,14 @@ async def register_credential(
             updated.append(iname)
 
     try:
-        await client.update_team(customer_id, {"models": updated})
+        await client.update_customer(customer_id, {"models": updated})
     except HTTPStatusError as exc:
         raise HTTPException(status_code=exc.response.status_code, detail=str(exc))
 
     keys_updated = await _sync_key_aliases(client, customer_id, updated)
 
     await audit.log_event(
-        team_id=customer_id,
+        customer_id=customer_id,
         provider=provider,
         action="register",
         detail={
@@ -201,7 +201,7 @@ async def deregister_credential(
 ):
     """고객사 자체 provider 키 제거. 플랫폼 기본 키로 자동 복원."""
     if customer_id != caller_id:
-        raise HTTPException(status_code=403, detail="Cannot modify another team")
+        raise HTTPException(status_code=403, detail="Cannot modify another customer")
 
     provider = provider.lower()
     catalog = load_provider_models()
@@ -212,7 +212,7 @@ async def deregister_credential(
 
     await _delete_internal_models(client, customer_id, provider)
 
-    current_models = await client.get_team_models(customer_id)
+    current_models = await client.get_customer_models(customer_id)
     internal_names = {internal_model_name(customer_id, d["name"]) for d in model_defs}
     platform_names = [d["name"] for d in model_defs]
 
@@ -222,14 +222,14 @@ async def deregister_credential(
             updated.append(pn)
 
     try:
-        await client.update_team(customer_id, {"models": updated})
+        await client.update_customer(customer_id, {"models": updated})
     except HTTPStatusError as exc:
         raise HTTPException(status_code=exc.response.status_code, detail=str(exc))
 
     keys_updated = await _sync_key_aliases(client, customer_id, updated)
 
     await audit.log_event(
-        team_id=customer_id,
+        customer_id=customer_id,
         provider=provider,
         action="deregister",
         detail={
@@ -256,9 +256,9 @@ async def list_credentials(
 ):
     """고객사 모델 목록 (플랫폼 키 / 자체 키 구분 표시)."""
     if customer_id != caller_id:
-        raise HTTPException(status_code=403, detail="Cannot view another team")
+        raise HTTPException(status_code=403, detail="Cannot view another customer")
 
-    current_models = await client.get_team_models(customer_id)
+    current_models = await client.get_customer_models(customer_id)
 
     platform_lookup: dict[str, dict] = {}
     for prov, defs in load_provider_models().items():
@@ -291,7 +291,7 @@ async def credential_history(
 ):
     """자격증명 변경 이력 조회."""
     if customer_id != caller_id:
-        raise HTTPException(status_code=403, detail="Cannot view another team")
+        raise HTTPException(status_code=403, detail="Cannot view another customer")
 
     settings = get_settings()
     events = await audit.get_history(
