@@ -193,8 +193,3 @@ cd gateway-api
 pip install httpx pytest
 GATEWAY_URL=http://localhost:8000 pytest tests/ -v
 ```
-
-## 향후 계획
-
-- Kubernetes (EKS) 매니페스트 추가
-- PostgreSQL → Aurora 마이그레이션 (환경변수만 변경)
