@@ -274,7 +274,34 @@ class TestUsage:
         assert data["spend"] == 0.0
 
 
-# ── Traces ─────────────────────────────────────────
+# ── Customer Usage ──────────────────────────────────
+
+
+class TestCustomerUsage:
+    def test_customer_usage(self, customer_id: str):
+        """Customer can view their aggregate usage (spend, budget, remaining)."""
+        resp = httpx.get(
+            f"{BASE}/api/v1/customers/{customer_id}/usage",
+            headers=_customer_headers(customer_id),
+        )
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["customer_id"] == customer_id
+        assert "total_spend" in data
+        assert "max_budget" in data
+        assert "budget_remaining" in data
+        assert isinstance(data["keys"], list)
+
+    def test_customer_usage_cross_customer_denied(self, customer_id: str):
+        """Customer cannot view another customer's usage."""
+        resp = httpx.get(
+            f"{BASE}/api/v1/customers/other-customer/usage",
+            headers=_customer_headers(customer_id),
+        )
+        assert resp.status_code == 403
+
+
+# ── Traces ──────────────────────────────────────────
 
 
 class TestTraces:
@@ -284,11 +311,10 @@ class TestTraces:
             f"{BASE}/api/v1/customers/{customer_id}/traces?limit=10",
             headers=_customer_headers(customer_id),
         )
-        assert resp.status_code in (200, 502)
-        if resp.status_code == 200:
-            data = resp.json()
-            assert data["customer_id"] == customer_id
-            assert isinstance(data["traces"], list)
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["customer_id"] == customer_id
+        assert isinstance(data["traces"], list)
 
     def test_cross_customer_denied(self, customer_id: str):
         """Customer cannot view another customer's traces."""
@@ -298,16 +324,8 @@ class TestTraces:
         )
         assert resp.status_code == 403
 
-    def test_key_traces_admin_only(self, customer_id: str):
-        """Key-level traces endpoint requires admin auth."""
-        resp = httpx.get(
-            f"{BASE}/api/v1/keys/somekeyhash/traces",
-            headers=ADMIN_HEADERS,
-        )
-        assert resp.status_code in (200, 502)
-
     def test_trace_detail_not_found(self, customer_id: str):
-        """Non-existent trace returns 404."""
+        """Non-existent trace returns 404 or 403."""
         resp = httpx.get(
             f"{BASE}/api/v1/customers/{customer_id}/traces/nonexistent-trace-id",
             headers=_customer_headers(customer_id),

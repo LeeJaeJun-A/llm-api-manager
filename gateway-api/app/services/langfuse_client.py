@@ -33,29 +33,19 @@ class LangfuseClient:
         self,
         *,
         user_id: str | None = None,
-        tags: list[str] | None = None,
-        name: str | None = None,
         from_timestamp: str | None = None,
         to_timestamp: str | None = None,
         limit: int = 50,
         page: int = 1,
-        order_by: str | None = None,
     ) -> dict:
         """GET /api/public/traces with optional filters."""
         params: dict[str, Any] = {"limit": limit, "page": page}
         if user_id:
             params["userId"] = user_id
-        if tags:
-            for tag in tags:
-                params.setdefault("tags", []).append(tag)
-        if name:
-            params["name"] = name
         if from_timestamp:
             params["fromTimestamp"] = from_timestamp
         if to_timestamp:
             params["toTimestamp"] = to_timestamp
-        if order_by:
-            params["orderBy"] = order_by
         return await self._get("/api/public/traces", params=params)
 
     async def get_trace(self, trace_id: str) -> dict:
@@ -66,8 +56,6 @@ class LangfuseClient:
         self,
         *,
         trace_id: str | None = None,
-        name: str | None = None,
-        type: str | None = None,
         limit: int = 50,
         page: int = 1,
     ) -> dict:
@@ -75,8 +63,4 @@ class LangfuseClient:
         params: dict[str, Any] = {"limit": limit, "page": page}
         if trace_id:
             params["traceId"] = trace_id
-        if name:
-            params["name"] = name
-        if type:
-            params["type"] = type
         return await self._get("/api/public/observations", params=params)

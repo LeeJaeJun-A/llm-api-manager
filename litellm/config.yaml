@@ -26,7 +26,7 @@ model_list:
       api_key: os.environ/ANTHROPIC_API_KEY
 
   # ═══════════════════════════════════════════════════
-  #  Google Gemini
+  #  Google Gemini (키 없으면 부팅 시 스킵됨)
   # ═══════════════════════════════════════════════════
   - model_name: gemini-pro
     litellm_params:
@@ -61,6 +61,8 @@ general_settings:
 
 litellm_settings:
   success_callback: ["langfuse"]
+  callbacks: custom_callbacks.proxy_handler_instance
+  langfuse_default_tags: ["user_api_key_team_id", "user_api_key_team_alias"]
   cache: true
   cache_params:
     type: redis

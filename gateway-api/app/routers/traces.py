@@ -1,8 +1,8 @@
-"""Trace / observation query endpoints (REQ-03).
+"""Trace / observation query endpoints.
 
-Provides programmatic access to per-key usage history stored in Langfuse.
-LiteLLM automatically sends traces to Langfuse with metadata including
-the virtual key hash and customer ID, so we can filter by those.
+Custom callback(litellm/custom_callbacks.py)이 모든 LLM 호출의 Langfuse trace에
+userId = customer_id(team_id)를 자동 주입하므로,
+list_traces(userId=customer_id)로 바로 고객별 trace를 조회할 수 있습니다.
 """
 
 import logging
@@ -12,7 +12,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from httpx import HTTPStatusError
 
-from app.dependencies import require_admin, require_customer
+from app.dependencies import require_customer
 from app.services.langfuse_client import LangfuseClient
 
 logger = logging.getLogger(__name__)
@@ -51,34 +51,25 @@ async def list_customer_traces(
     caller_id: str = Depends(require_customer),
     langfuse: LangfuseClient = Depends(_get_langfuse),
 ):
-    """List LLM call traces for a customer.
-
-    LiteLLM tags each trace with `user_api_key_team_id` in metadata.
-    We filter Langfuse traces by tag `team:{customer_id}` which LiteLLM
-    automatically adds when the `team_id` is set on the virtual key.
-    """
+    """고객의 LLM 호출 trace 목록 조회 (Langfuse userId = customer_id)."""
     if caller_id != customer_id:
         raise HTTPException(403, "Access denied to another customer's traces")
 
     try:
         result = await langfuse.list_traces(
-            tags=[f"team_id:{customer_id}"],
+            user_id=customer_id,
             from_timestamp=from_timestamp,
             to_timestamp=to_timestamp,
             limit=limit,
             page=page,
         )
     except HTTPStatusError as exc:
-        logger.error("Langfuse traces list failed: %s", exc.response.text)
-        raise HTTPException(502, "Failed to fetch traces from Langfuse")
-    except Exception:
-        logger.exception("Unexpected error fetching traces")
+        logger.error("Langfuse list_traces failed: %s", exc.response.text)
         raise HTTPException(502, "Failed to fetch traces from Langfuse")
 
-    traces = result.get("data", [])
     return {
         "customer_id": customer_id,
-        "traces": [_slim_trace(t) for t in traces],
+        "traces": [_slim_trace(t) for t in result.get("data", [])],
         "meta": result.get("meta", {}),
     }
 
@@ -90,7 +81,7 @@ async def get_customer_trace(
     caller_id: str = Depends(require_customer),
     langfuse: LangfuseClient = Depends(_get_langfuse),
 ):
-    """Get full trace detail including individual observations (LLM calls)."""
+    """특정 trace 상세 조회 (개별 LLM 호출 observation 포함)."""
     if caller_id != customer_id:
         raise HTTPException(403, "Access denied to another customer's traces")
 
@@ -102,11 +93,8 @@ async def get_customer_trace(
         logger.error("Langfuse trace fetch failed: %s", exc.response.text)
         raise HTTPException(502, "Failed to fetch trace from Langfuse")
 
-    trace_meta = trace.get("metadata") or {}
-    if trace_meta.get("user_api_key_team_id") != customer_id:
-        tags = trace.get("tags") or []
-        if f"team_id:{customer_id}" not in tags:
-            raise HTTPException(403, "This trace does not belong to your customer")
+    if trace.get("userId") != customer_id:
+        raise HTTPException(403, "This trace does not belong to your customer")
 
     observations_raw = []
     try:
@@ -121,42 +109,10 @@ async def get_customer_trace(
     }
 
 
-@router.get("/keys/{key_hash}/traces")
-async def list_key_traces(
-    key_hash: str,
-    limit: int = Query(50, ge=1, le=200),
-    page: int = Query(1, ge=1),
-    from_timestamp: str | None = Query(None, description="ISO-8601 start"),
-    to_timestamp: str | None = Query(None, description="ISO-8601 end"),
-    _: None = Depends(require_admin),
-    langfuse: LangfuseClient = Depends(_get_langfuse),
-):
-    """List traces for a specific virtual key (admin only).
-
-    LiteLLM stores `user_api_key_hash` in trace metadata.
-    We use the Langfuse `userId` field which LiteLLM sets to the key hash.
-    """
-    try:
-        result = await langfuse.list_traces(
-            user_id=key_hash,
-            from_timestamp=from_timestamp,
-            to_timestamp=to_timestamp,
-            limit=limit,
-            page=page,
-        )
-    except HTTPStatusError as exc:
-        logger.error("Langfuse key traces failed: %s", exc.response.text)
-        raise HTTPException(502, "Failed to fetch traces from Langfuse")
-
-    return {
-        "key_hash": key_hash,
-        "traces": [_slim_trace(t) for t in result.get("data", [])],
-        "meta": result.get("meta", {}),
-    }
+# ── Response mappers ────────────────────────────────
 
 
 def _slim_trace(t: dict[str, Any]) -> dict[str, Any]:
-    """Extract key fields from a Langfuse trace for list responses."""
     return {
         "id": t.get("id"),
         "name": t.get("name"),
@@ -168,12 +124,10 @@ def _slim_trace(t: dict[str, Any]) -> dict[str, Any]:
         "total_tokens": _extract_tokens(t, "total"),
         "tags": t.get("tags", []),
         "metadata": t.get("metadata"),
-        "status": t.get("status"),
     }
 
 
 def _full_trace(t: dict[str, Any], observations: list[dict]) -> dict[str, Any]:
-    """Full trace with nested observation details."""
     base = _slim_trace(t)
     base["input"] = t.get("input")
     base["output"] = t.get("output")

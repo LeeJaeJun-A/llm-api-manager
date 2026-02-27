@@ -38,6 +38,7 @@ services:
     volumes:
       - ./litellm/config.yaml:/app/config.template.yaml:ro
       - ./litellm/generate_config.py:/app/generate_config.py:ro
+      - ./litellm/custom_callbacks.py:/app/custom_callbacks.py:ro
       - ./litellm/entrypoint.sh:/app/entrypoint.sh:ro
     environment:
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}

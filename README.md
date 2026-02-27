@@ -97,33 +97,49 @@ curl -X POST http://localhost:4000/chat/completions \
 ### 사용량 조회
 
 ```bash
+# 고객사 전체 사용량 (총 사용액, 한도, 잔액 + 키별 내역)
+curl http://localhost:8000/api/v1/customers/<customer_id>/usage \
+  -H "X-API-Secret: $GATEWAY_API_SECRET" \
+  -H "X-Customer-Id: <customer_id>"
+
+# 개별 키 사용량
 curl http://localhost:8000/api/v1/usage/<key_hash> \
   -H "X-API-Secret: $GATEWAY_API_SECRET" \
   -H "X-Customer-Id: <customer_id>"
 ```
 
-### 키별 사용 기록 조회 (REQ-03: Traces)
+응답 예시 (`GET /customers/{id}/usage`):
 
-Langfuse에 자동 수집된 LLM 호출 트레이스를 Gateway API를 통해 프로그래밍적으로 조회합니다.
-
-```bash
-# 고객사의 전체 trace 목록 조회
-curl "http://localhost:8000/api/v1/customers/<customer_id>/traces?limit=20&page=1" \
-  -H "X-API-Secret: $GATEWAY_API_SECRET" \
-  -H "X-Customer-Id: <customer_id>"
-
-# 특정 trace 상세 조회 (개별 LLM 호출 observation 포함)
-curl http://localhost:8000/api/v1/customers/<customer_id>/traces/<trace_id> \
-  -H "X-API-Secret: $GATEWAY_API_SECRET" \
-  -H "X-Customer-Id: <customer_id>"
-
-# 특정 키의 trace 조회 (관리자 전용)
-curl "http://localhost:8000/api/v1/keys/<key_hash>/traces?limit=50" \
-  -H "X-API-Secret: $GATEWAY_API_SECRET"
+```json
+{
+  "customer_id": "acme-corp",
+  "customer_alias": "고객사A",
+  "total_spend": 12.34,
+  "max_budget": 100.0,
+  "budget_remaining": 87.66,
+  "budget_duration": "30d",
+  "tpm_limit": 100000,
+  "rpm_limit": 500,
+  "keys": [
+    {
+      "key": "sk-...",
+      "key_alias": "production-key",
+      "spend": 10.00,
+      "max_budget": 50.0,
+      "budget_remaining": 40.0,
+      "models": ["gpt-4o", "gpt-4o-mini"]
+    }
+  ]
+}
 ```
 
-각 trace에는 모델명, 입/출력 토큰 수, 레이턴시, 비용, 요청/응답 내용이 포함됩니다.
-시간 범위 필터: `from_timestamp`, `to_timestamp` (ISO-8601 형식).
+### 트레이스 (Langfuse)
+
+LLM 호출 이력은 Langfuse 대시보드(http://localhost:3000)에서 직접 조회합니다.
+
+커스텀 콜백(`litellm/custom_callbacks.py`)이 모든 LLM 호출에 대해 자동으로
+customer_id(team_id)를 Langfuse trace의 `userId`로 주입합니다.
+따라서 Langfuse의 **Users** 뷰에서 고객사별 사용량과 비용을 바로 확인할 수 있습니다.
 
 ## 등록된 모델 (플랫폼 기본)
 
